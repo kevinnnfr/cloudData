@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Document</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+			}
+
+			::-webkit-scrollbar {
+				width: 3px;
+				height: 10px;
+				background-color: #F5F5F5;
+			}
+
+			::-webkit-scrollbar-thumb {
+				border-radius: 5px;
+				background-color: rgba(0, 0, 0, .2);
+			}
+
+			::-webkit-scrollbar-track {
+				border-radius: 5px;
+				background-color: #F5F5F5;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="echarts" style="width: 100vw;height: 100vh;">
+			<!-- <div style="width: 100vw;height: 100vh;overflow: hidden;">
+			<img src="./img/组.png" style="width: 100%;height: 100%;padding: 0;margin: 0;"> -->
+		</div>
+		<img src="./img/Layer1.png"
+			style="width: 24.48vw;height: 17.41vh;position: fixed;top: 4.35vh;left: 36.25vw;z-index: 99;">
+		<div
+			style="width: 39.22vw;height: 21.39vh;position: fixed;bottom: 3.06vh;left: 33.24vw;z-index: 99;display: flex;flex-direction: column;justify-content: space-between;">
+			<div style="font-size: 1.21vw;color: #ececec;">Revenue data of the last 7 days</div>
+			<div id="days" style="width: 100%;height: 16.76vh;">
+			</div>
+		</div>
+		<div
+			style="width: 26.3vw;height: 21.39vh;position: fixed;bottom: 3.06vh;right: 2.03vw;z-index: 99;display: flex;flex-direction: column;justify-content: space-between;">
+			<div style="font-size: 1.21vw;color: #ececec;">Revenue data of the last 4 months</div>
+			<div id="months" style="width: 100%;height: 16.76vh;">
+			</div>
+		</div>
+		<div
+			style="width: 19.38vw;height: 64.9vh;position: fixed;top: 5.37vh;right: 4.79vw;z-index: 99;display: flex;flex-direction: column;justify-content: space-between;">
+			<div style="font-size: 2.19vw;color: #ececec;">Lease order</div>
+			<div style="width: 100%;height: 57.41vh;background-color: #042352;color: #fff;border: 1px solid #0162E5;">
+				<div
+					style="width: 100%;height: 7.04vh;display: flex;align-items: center;border: 1px solid #0162E5;justify-content: space-between;">
+					<div style="width: 4.69vw;text-align: center;">time</div>
+					<div style="width: 10vw;text-align: center;">Merchant name</div>
+					<div style="width: 4.69vw;text-align: center;">money</div>
+				</div>
+				<div id="ul" style="width: 100%;height: 50.37vh;overflow-y: scroll;overflow-x: hidden;">
+				</div>
+			</div>
+		</div>
+	</body>
+	<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.3.3/echarts.min.js"></script>
+	<script type="text/javascript"
+		src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDgrvlZBlajFhyR59FqktWKryhueVURoHk&sensor=true"></script>
+	<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.3.3/extension/bmap.min.js"></script>
+	<script>
+		function GetQueryString(name) {
+			var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+			var r = window.location.search.substr(1).match(reg);
+			if (r != null) return unescape(r[2]);
+			return null;
+		}
+
+		let token = "Bearer " + GetQueryString("token");
+
+		function ajax_post(url, data, success) {
+			var ajax = new XMLHttpRequest();
+			ajax.open("post", url);
+			ajax.setRequestHeader(
+				"Content-type",
+				"application/x-www-form-urlencoded"
+			);
+			ajax.setRequestHeader("Authorization", token);
+			if (data) {
+				ajax.send(data);
+			} else {
+				ajax.send();
+			}
+			ajax.onreadystatechange = function() {
+				if (ajax.readyState == 4 && ajax.status == 200) {
+					success(ajax.responseText);
+				}
+			};
+		}
+	</script>
+	<script>
+		ajax_post(
+			"https://cdb.cryptotem.net/mgr-api/cloud-data/latest-order", undefined,
+			(res) => {
+				console.log(res);
+				var ul = document.getElementById("ul");
+				JSON.parse(res).data.forEach(e => {
+					var div = document.createElement("div");
+					div.setAttribute('style',
+						'width: 100%;height: 7.04vh;display: flex;align-items: center;border: 1px solid #0162E5;justify-content: space-between;'
+					);
+					var div1 = document.createElement("div");
+					div1.setAttribute('style', 'width: 4.69vw;text-align: center;');
+					div1.innerHTML = e.finishTime.split(' ')[1]
+					div.appendChild(div1);
+					var div2 = document.createElement("div");
+					div2.setAttribute('style', 'width: 10vw;text-align: center;');
+					div2.innerHTML = e.merchantName
+					div.appendChild(div2);
+					var div3 = document.createElement("div");
+					div3.setAttribute('style', 'width: 4.69vw;text-align: center;');
+					div3.innerHTML = e.totalAmount
+					div.appendChild(div3);
+					ul.appendChild(div);
+				})
+			}
+		);
+	</script>
+	<script>
+		ajax_post(
+			"https://cdb.cryptotem.net/mgr-api/cloud-data/latest-month-income", undefined,
+			(res) => {
+				let monthStr = []
+				let monthprofit = []
+				JSON.parse(res).data.forEach(e => {
+					monthStr.push(e.dateStr)
+					monthprofit.push(e.profit)
+				})
+				var monthschart = echarts.init(document.getElementById('months'));
+				var monthsoption = {
+					color: '#14D2CF',
+					grid: {
+						height: 'auto',
+						top: 10,
+						left: 40,
+					},
+					xAxis: {
+						type: 'category',
+						data: monthStr,
+						axisLine: {
+							lineStyle: {
+								type: 'solid',
+								color: '#fff', //左边线的颜色
+								width: '2' //坐标线的宽度
+							}
+						},
+						axisLabel: {
+							textStyle: {
+								color: '#fff', //坐标值得具体的颜色
+							}
+						}
+					},
+					yAxis: {
+						type: 'value',
+						axisLabel: {
+							textStyle: {
+								color: '#fff', //坐标值得具体的颜色
+
+							}
+						}
+					},
+					series: [{
+						data: monthprofit,
+						type: 'bar',
+					}]
+				};
+				monthschart.setOption(monthsoption);
+			}
+		);
+	</script>
+	<script>
+		ajax_post(
+			"https://cdb.cryptotem.net/mgr-api/cloud-data/latest-days-income", undefined,
+			(res) => {
+				let dateStr = []
+				let profit = []
+				JSON.parse(res).data.forEach(e => {
+					dateStr.push(e.dateStr)
+					profit.push(e.profit)
+				})
+				var dayschart = echarts.init(document.getElementById('days'));
+				var daysoption = {
+					color: '#006EFF',
+					grid: {
+						height: 'auto',
+						top: 10,
+						left: 40,
+					},
+					xAxis: {
+						type: 'category',
+						data: dateStr,
+						axisLine: {
+							lineStyle: {
+								type: 'solid',
+								color: '#fff', //左边线的颜色
+								width: '2' //坐标线的宽度
+							}
+						},
+						axisLabel: {
+							textStyle: {
+								color: '#fff', //坐标值得具体的颜色
+							}
+						}
+					},
+					yAxis: {
+						type: 'value',
+						axisLabel: {
+							textStyle: {
+								color: '#fff', //坐标值得具体的颜色
+
+							}
+						}
+					},
+					series: [{
+						data: profit,
+						type: 'bar',
+					}]
+				};
+				dayschart.setOption(daysoption);
+			}
+		);
+	</script>
+	<script>
+		var mapJson = [{
+				"elementType": "geometry",
+				"stylers": [{
+					"color": "#1d2c4d"
+				}]
+			},
+			{
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#8ec3b9"
+				}]
+			},
+			{
+				"elementType": "labels.text.stroke",
+				"stylers": [{
+					"color": "#1a3646"
+				}]
+			},
+			{
+				"featureType": "administrative.country",
+				"elementType": "geometry.stroke",
+				"stylers": [{
+						"color": "#08b6ff"
+					},
+					{
+						"weight": 4
+					}
+				]
+			},
+			{
+				"featureType": "administrative.land_parcel",
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#64779e"
+				}]
+			},
+			{
+				"featureType": "administrative.locality",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "administrative.neighborhood",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "administrative.province",
+				"elementType": "geometry.stroke",
+				"stylers": [{
+					"color": "#4b6878"
+				}]
+			},
+			{
+				"featureType": "landscape.man_made",
+				"elementType": "geometry.stroke",
+				"stylers": [{
+					"color": "#334e87"
+				}]
+			},
+			{
+				"featureType": "landscape.natural",
+				"elementType": "geometry",
+				"stylers": [{
+					"color": "#023e58"
+				}]
+			},
+			{
+				"featureType": "landscape.natural.landcover",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "landscape.natural.terrain",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "poi",
+				"elementType": "geometry",
+				"stylers": [{
+					"color": "#283d6a"
+				}]
+			},
+			{
+				"featureType": "poi",
+				"elementType": "labels.text",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "poi",
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#6f9ba5"
+				}]
+			},
+			{
+				"featureType": "poi",
+				"elementType": "labels.text.stroke",
+				"stylers": [{
+					"color": "#1d2c4d"
+				}]
+			},
+			{
+				"featureType": "poi.business",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "poi.park",
+				"elementType": "geometry.fill",
+				"stylers": [{
+					"color": "#023e58"
+				}]
+			},
+			{
+				"featureType": "poi.park",
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#3C7680"
+				}]
+			},
+			{
+				"featureType": "road",
+				"elementType": "geometry",
+				"stylers": [{
+					"color": "#304a7d"
+				}]
+			},
+			{
+				"featureType": "road",
+				"elementType": "labels",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "road",
+				"elementType": "labels.icon",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "road",
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#98a5be"
+				}]
+			},
+			{
+				"featureType": "road",
+				"elementType": "labels.text.stroke",
+				"stylers": [{
+					"color": "#1d2c4d"
+				}]
+			},
+			{
+				"featureType": "road.arterial",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "road.highway",
+				"stylers": [{
+						"visibility": "off"
+					},
+					{
+						"weight": 3
+					}
+				]
+			},
+			{
+				"featureType": "road.highway",
+				"elementType": "geometry",
+				"stylers": [{
+					"color": "#2c6675"
+				}]
+			},
+			{
+				"featureType": "road.highway",
+				"elementType": "labels",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "road.highway",
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#b0d5ce"
+				}]
+			},
+			{
+				"featureType": "road.highway",
+				"elementType": "labels.text.stroke",
+				"stylers": [{
+					"color": "#023e58"
+				}]
+			},
+			{
+				"featureType": "road.local",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "transit",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "transit",
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#98a5be"
+				}]
+			},
+			{
+				"featureType": "transit",
+				"elementType": "labels.text.stroke",
+				"stylers": [{
+					"color": "#1d2c4d"
+				}]
+			},
+			{
+				"featureType": "transit.line",
+				"elementType": "geometry.fill",
+				"stylers": [{
+					"color": "#283d6a"
+				}]
+			},
+			{
+				"featureType": "transit.station",
+				"elementType": "geometry",
+				"stylers": [{
+					"color": "#3a4762"
+				}]
+			},
+			{
+				"featureType": "water",
+				"elementType": "geometry",
+				"stylers": [{
+					"color": "#0e1626"
+				}]
+			},
+			{
+				"featureType": "water",
+				"elementType": "labels.text",
+				"stylers": [{
+					"visibility": "off"
+				}]
+			},
+			{
+				"featureType": "water",
+				"elementType": "labels.text.fill",
+				"stylers": [{
+					"color": "#4e6d70"
+				}]
+			}
+		]
+
+		function initialize(e) {
+			var mapProp = {
+				center: {
+					lat: 46.2553,
+					lng: 3.492028
+				},
+				zoom: 6,
+				roam: true,
+				disableDefaultUI: true,
+				mapTypeControlOptions: {
+					mapTypeIds: [google.maps.MapTypeId.ROADMAP, 'map_style']
+				}
+			};
+			var styledMapType = new google.maps.StyledMapType(JSON.parse(JSON.stringify(mapJson)), {
+				name: 'Styled'
+			});
+			var map = new google.maps.Map(document.getElementById("echarts"), mapProp);
+			map.mapTypes.set('map_style', styledMapType);
+			map.setMapTypeId('map_style');
+			e.forEach(a => {
+				var marker = new google.maps.Marker({
+					position: {
+						lat: a.lat,
+						lng: a.lng
+					},
+					map: map,
+					icon: {
+						path: google.maps.SymbolPath.CIRCLE,
+						scale: 6,
+						fillColor: '#555555',
+						fillOpacity: 1,
+						strokeColor: '#07adf4'
+					}
+				});
+			})
+		}
+		ajax_post(
+			"https://cdb.cryptotem.net/mgr-api/cloud-data/map-locate", undefined,
+			(res) => {
+				let mapLocate = []
+				JSON.parse(res).data.forEach(e => {
+					mapLocate.push({
+						lng: e.longitude,
+						lat: e.latitude
+					})
+				})
+				initialize(mapLocate)
+			}
+		);
+	</script>
+</html>
